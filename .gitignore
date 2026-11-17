@@ -1,0 +1,15 @@
+# Python environment
+.venv/
+__pycache__/
+*.pyc
+
+# Datasets
+data/
+
+# Trained models
+models/
+
+# Temporary files
+.ipynb_checkpoints/
+.env
+*.log

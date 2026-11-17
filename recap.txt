@@ -1,0 +1,44 @@
+Excellent! ✅ Now we've found an important data-quality anomaly in our NYC Taxi dataset.
+1. What did we discover?
+All 76 inconsistent trips have a difference of exactly −3,600 seconds (−1 hour).
+
+Look at this record from your output:
+Field	Value
+Pickup	2016-03-27 03:49:56
+Drop-off	2016-03-27 03:09:17
+Calculated duration	−2,439 seconds
+Recorded duration	+1,161 seconds
+
+Notice something strange: the drop-off time is earlier than the pickup time, yet the recorded trip duration is positive.
+Could Daylight Saving Time explain this?
+Possibly, but there's an important distinction:
+- New York changed to daylight saving time on March 13, 2016.
+- Europe changed on March 27, 2016. 
+  Timeanddate+1
+Your displayed records are from March 27. This suggests a possible timestamp-processing issue, but we cannot yet confirm the exact cause.
+2. Our next step — Check the dates
+We want to know whether all 76 mismatches are concentrated on March 27.
+
+Add this to clean.py:
+df_mismatch.groupBy(    F.to_date("dropoff_datetime").alias("dropoff_date")).count().show()
+
+
+
+Understanding the code
+- F.to_date() extracts just the date from a timestamp.
+- groupBy() groups records by that date.
+- count() counts the inconsistent trips for each date.
+- show() displays the result.
+For example, if all mismatches occurred on March 27, we would see:
++------------+-----+
+|dropoff_date|count|
++------------+-----+
+|2016-03-27  |   76|
++------------+-----+
+
+
+This is an expected example, not yet your verified result.
+
+Why are we doing this? Before deciding whether to exclude these records in Silver, we want to understand whether the error is isolated to a specific date.
+
+Run this code and send me the result. Then we'll decide how to handle the 76 inconsistent records without changing the original Bronze dataset.
