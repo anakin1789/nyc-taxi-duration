@@ -4,7 +4,7 @@ __pycache__/
 *.pyc
 
 # Datasets
-data/
+/data/
 
 # Trained models
 models/
