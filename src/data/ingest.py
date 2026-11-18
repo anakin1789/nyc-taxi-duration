@@ -1,57 +1,120 @@
-
 from pyspark.sql import SparkSession
+from pathlib import Path
 from pyspark.sql import functions as F
 
-# 1. Create a Spark session
-spark = SparkSession.builder \
-    .appName("NYC-Taxi-Bronze") \
-    .master("local[*]") \
-    .getOrCreate()
+#1. create the spark session
 
-# 2. Read the raw dataset
-df = spark.read.csv(
-    "data/bronze/training/train.csv",
-    header=True,
-    inferSchema=True 
+spark = (SparkSession.builder
+.appName("NYC-Taxi-Bronze")
+.master("local[*]")
+.getOrCreate()
 )
 
-# 3. Display the first 5 records
-df.show(5)
+#Read october 2025 parquet file from the landing zone and write it to the bronze zone
+
+df = spark.read.parquet(
+    "data/bronze/yellow_tripdata_2025-10.parquet"
+    )
+
+
+#3. inspect the dataset
+
 df.printSchema()
-print("total records:", df.count())
+df.show(5 , truncate=False)
 
-#we need to find out whether any columns contain null values
+#4. count all trips 
+print("Total records:", df.count())
 
-df.select([
-    F.count(F.when(F.col(c).isNull(), 1)).alias(c) 
-    for c in df.columns
-]).show()
+#read november 2025
 
-
-df.select(
-    F.min("trip_duration").alias("min_duration"),
-    F.max("trip_duration").alias("max_duration"),
-    F.mean("trip_duration").alias("mean_duration"),
-).show()
-
-df.select(
-    F.count(F.when(F.col("trip_duration") < 60, 1)).alias("under_1_minute"),
-    F.count(F.when(F.col("trip_duration") > 10800, 1)).alias("over_3_hour"),
-).show()
-
-percentiles = df.approxQuantile(
-    "trip_duration",
-    [0.50,0.95,0.99,0.999],
-    0.001
+df_nov = spark.read.parquet(
+    "data/bronze/yellow_tripdata_2025-11.parquet"
 )
 
-print("P50:", percentiles[0])
-print("P95:", percentiles[1])
-print("P99:", percentiles[2])
-print("P99.9:", percentiles[3])
-print("duration percentiles:", percentiles)
+#compare both shcemas 
+print("Same schema:", df.schema == df_nov.schema)
 
-p99= df.approxQuantile("trip_duration", [0.999], 0.001)
-print("P99.9:", p99[0])
+files = sorted(
+    Path("data/bronze").glob("yellow_tripdata_*.parquet")
+)
+print("Number of files :", len(files))
+
+for file in files:
+    df_month = spark.read.parquet(str(file))
+
+    print(
+        file.name,
+        "Same schema:",
+         df_month.schema == df.schema,
+    )
+
+
+df_june = spark.read.parquet(
+    "data/bronze/yellow_tripdata_2026-06.parquet"
+)
+
+print("June 2026 schema:")
+df_june.printSchema()
+
+for month in ["07", "08", "09"]:
+    df_month = spark.read.parquet(
+        f"data/bronze/yellow_tripdata_2026-{month}.parquet"
+    )
+
+    print(
+        f"2026-{month}:",
+        df_month.schema == df_june.schema
+    )
+
+files = sorted(
+    Path("data/bronze").glob("yellow_tripdata_*.parquet")
+)
+
+# Start with an empty reference
+df_combined = None
+
+for i, file in enumerate(files, start=1):
+    df_month = spark.read.parquet(str(file))
+
+    if df_combined is None:
+        df_combined = df_month
+    else:
+        df_combined = df_combined.unionByName(
+            df_month,
+            allowMissingColumns=True
+        )
+
+    print(f"Added {i}/{len(files)}: {file.name}")
+
+print("Months combined:", len(files))
+print("Total trips:", df_combined.count())
+
+
+
+files = sorted(
+    Path("data/bronze").glob("yellow_tripdata_*.parquet")
+)
+
+print("Files detected:", len(files))
+
+for file in files:
+    print(file.name)
+    
+
+
+df_combined.select(
+    F.min("tpep_pickup_datetime").alias("first_pickup"),
+    F.max("tpep_pickup_datetime").alias("last_pickup")
+).show(truncate=False)
+
+
+
+df_outside = df_combined.filter(
+    (F.col("tpep_pickup_datetime") < "2025-10-01") |
+    (F.col("tpep_pickup_datetime") >= "2026-10-01")
+)
+
+print("Trips outside study period:", df_outside.count())
+
 
 spark.stop()

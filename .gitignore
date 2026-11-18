@@ -1,15 +1,26 @@
+
 # Python environment
 .venv/
 __pycache__/
 *.pyc
 
-# Datasets
-/data/
+# Large taxi datasets
+data/bronze/
+data/silver/
+data/gold/
+*.parquet
 
-# Trained models
-models/
-
-# Temporary files
-.ipynb_checkpoints/
+# Environment variables and secrets
 .env
+.env.local
+
+# Logs and temporary files
 *.log
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+
+# Large archives
+*.zip
