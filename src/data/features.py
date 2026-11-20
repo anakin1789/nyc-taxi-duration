@@ -73,4 +73,14 @@ df_gold = df_gold.select(
 df_gold.printSchema()
 df_gold.show(10, truncate=False)
 
+
+
+# Save the Gold dataset
+df_gold.write \
+    .mode("overwrite") \
+    .parquet("data/gold/trips_features")
+
+print("Gold dataset saved successfully!")
+
+
 spark.stop()
